@@ -1,17 +1,8 @@
-## Micronaut 5.1.2 Documentation
+# Renamer
 
-- [User Guide](https://docs.micronaut.io/5.1.2/guide/index.html)
-- [API Reference](https://docs.micronaut.io/5.1.2/api/index.html)
-- [Configuration Reference](https://docs.micronaut.io/5.1.2/guide/configurationreference.html)
-- [Micronaut Guides](https://guides.micronaut.io/index.html)
----
+A command-line tool that renames a folder's direct contents to URL-friendly names: lowercase, unaccented, with spaces and repeated underscores normalized to `_`.
 
-- [Micronaut Gradle Plugin documentation](https://micronaut-projects.github.io/micronaut-gradle-plugin/latest/)
-- [GraalVM Gradle Plugin documentation](https://graalvm.github.io/native-build-tools/latest/gradle-plugin.html)
-- [Shadow Gradle Plugin](https://gradleup.com/shadow/)
-## Feature serialization-jackson documentation
-
-
-- [Micronaut Serialization Jackson Core documentation](https://micronaut-projects.github.io/micronaut-serialization/latest/guide/)
-
+```bash
+renamer /path/to/folder
+```
 
