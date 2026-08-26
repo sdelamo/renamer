@@ -1,12 +1,20 @@
 package com.softamo;
 
 import io.micronaut.configuration.picocli.PicocliRunner;
-import io.micronaut.context.ApplicationContext;
-
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.text.Normalizer;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Command(name = "renamer", description = "...",
         mixinStandardHelpOptions = true)
@@ -15,14 +23,56 @@ public class RenamerCommand implements Runnable {
     @Option(names = {"-v", "--verbose"}, description = "...")
     boolean verbose;
 
+    @Parameters(index = "0", arity = "1", paramLabel = "<folder>", description = "Folder whose direct contents will be renamed")
+    Path folder;
+
     public static void main(String[] args) throws Exception {
         PicocliRunner.run(RenamerCommand.class, args);
     }
 
     public void run() {
-        // business logic here
-        if (verbose) {
-            System.out.println("Hi!");
+        if (!Files.isDirectory(folder)) {
+            throw new CommandLine.ParameterException(new CommandLine(this), folder + " is not a folder");
         }
+
+        try (Stream<Path> paths = Files.list(folder)) {
+            List<Path> contents = paths.toList();
+            Map<Path, Path> renames = contents.stream()
+                .collect(Collectors.toMap(path -> path, path -> path.resolveSibling(normalizeFileName(path.getFileName().toString()))));
+
+            ensureNoCollisions(contents, renames);
+
+            for (Map.Entry<Path, Path> rename : renames.entrySet()) {
+                if (!rename.getKey().equals(rename.getValue())) {
+                    Files.move(rename.getKey(), rename.getValue());
+                    if (verbose) {
+                        System.out.println(rename.getKey().getFileName() + " -> " + rename.getValue().getFileName());
+                    }
+                }
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("Unable to rename contents of " + folder, e);
+        }
+    }
+
+    static String normalizeFileName(String fileName) {
+        String withoutAccents = Normalizer.normalize(fileName, Normalizer.Form.NFD)
+            .replaceAll("\\p{M}+", "");
+        return withoutAccents
+            .replaceAll("\\s+", "_")
+            .replaceAll("_+", "_")
+            .toLowerCase(java.util.Locale.ROOT);
+    }
+
+    private static void ensureNoCollisions(List<Path> contents, Map<Path, Path> renames) {
+        Map<Path, List<Path>> sourcesByTarget = renames.entrySet().stream()
+            .collect(Collectors.groupingBy(Map.Entry::getValue,
+                Collectors.mapping(Map.Entry::getKey, Collectors.toList())));
+
+        sourcesByTarget.forEach((target, sources) -> {
+            if (sources.size() > 1 || (Files.exists(target) && !sources.contains(target))) {
+                throw new IllegalStateException("Cannot rename files because " + target.getFileName() + " would collide with an existing name");
+            }
+        });
     }
 }
