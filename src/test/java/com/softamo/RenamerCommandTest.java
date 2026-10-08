@@ -43,6 +43,20 @@ public class RenamerCommandTest {
     }
 
     @Test
+    public void renamesWhenOnlyTheCaseChanges(@TempDir Path folder) throws Exception {
+        Files.createFile(folder.resolve("7.Obuhovski-Grabszewski.mp4"));
+        try (ApplicationContext ctx = ApplicationContext.run(Environment.CLI, Environment.TEST)) {
+            String[] args = new String[] { folder.toString() };
+            PicocliRunner.run(RenamerCommand.class, ctx, args);
+
+            try (var paths = Files.list(folder)) {
+                assertEquals(java.util.List.of("7.obuhovski-grabszewski.mp4"),
+                    paths.map(p -> p.getFileName().toString()).toList());
+            }
+        }
+    }
+
+    @Test
     public void normalizesSpanishAccentsWhitespaceAndCase() {
         assertEquals("cancion_con_espacios.txt", RenamerCommand.normalizeFileName("Canción  con__ESPACIOS.TXT"));
     }

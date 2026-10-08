@@ -44,7 +44,7 @@ public class RenamerCommand implements Runnable {
             ensureNoCollisions(contents, renames);
 
             for (Map.Entry<Path, Path> rename : renames.entrySet()) {
-                Files.move(rename.getKey(), rename.getValue());
+                move(rename.getKey(), rename.getValue());
                 if (verbose) {
                     System.out.println(rename.getKey().getFileName() + " -> " + rename.getValue().getFileName());
                 }
@@ -63,15 +63,36 @@ public class RenamerCommand implements Runnable {
             .toLowerCase(java.util.Locale.ROOT);
     }
 
-    private static void ensureNoCollisions(List<Path> contents, Map<Path, Path> renames) {
+    /**
+     * Moves {@code source} to {@code target}. On case-insensitive file systems (such as the macOS default)
+     * {@link Files#move} treats a case-only rename as a no-op, so those go through a temporary name.
+     */
+    private static void move(Path source, Path target) throws IOException {
+        if (isSameFile(source, target)) {
+            Path temporary = Files.createTempFile(source.getParent(), ".renamer-", ".tmp");
+            Files.delete(temporary);
+            Files.move(source, temporary);
+            Files.move(temporary, target);
+        } else {
+            Files.move(source, target);
+        }
+    }
+
+    private static boolean isSameFile(Path a, Path b) throws IOException {
+        return Files.exists(b) && Files.isSameFile(a, b);
+    }
+
+    private static void ensureNoCollisions(List<Path> contents, Map<Path, Path> renames) throws IOException {
         Map<Path, List<Path>> sourcesByTarget = renames.entrySet().stream()
             .collect(Collectors.groupingBy(Map.Entry::getValue,
                 Collectors.mapping(Map.Entry::getKey, Collectors.toList())));
 
-        sourcesByTarget.forEach((target, sources) -> {
-            if (sources.size() > 1 || (Files.exists(target) && !sources.contains(target))) {
+        for (Map.Entry<Path, List<Path>> entry : sourcesByTarget.entrySet()) {
+            Path target = entry.getKey();
+            List<Path> sources = entry.getValue();
+            if (sources.size() > 1 || (Files.exists(target) && !isSameFile(sources.get(0), target))) {
                 throw new IllegalStateException("Cannot rename files because " + target.getFileName() + " would collide with an existing name");
             }
-        });
+        }
     }
 }
