@@ -26,6 +26,23 @@ public class RenamerCommandTest {
     }
 
     @Test
+    public void skipsFilesWhoseNameIsAlreadyNormalized(@TempDir Path folder) throws Exception {
+        Path alreadyNormalized = folder.resolve("already_normalized.txt");
+        Files.createFile(alreadyNormalized);
+        Files.createFile(folder.resolve("Needs Rename.TXT"));
+        try (ApplicationContext ctx = ApplicationContext.run(Environment.CLI, Environment.TEST)) {
+            String[] args = new String[] { folder.toString() };
+            PicocliRunner.run(RenamerCommand.class, ctx, args);
+
+            assertTrue(Files.exists(alreadyNormalized));
+            assertTrue(Files.exists(folder.resolve("needs_rename.txt")));
+            try (var paths = Files.list(folder)) {
+                assertEquals(2, paths.count());
+            }
+        }
+    }
+
+    @Test
     public void normalizesSpanishAccentsWhitespaceAndCase() {
         assertEquals("cancion_con_espacios.txt", RenamerCommand.normalizeFileName("Canción  con__ESPACIOS.TXT"));
     }

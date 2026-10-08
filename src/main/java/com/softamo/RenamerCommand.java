@@ -39,15 +39,14 @@ public class RenamerCommand implements Runnable {
             List<Path> contents = paths.toList();
             Map<Path, Path> renames = contents.stream()
                 .collect(Collectors.toMap(path -> path, path -> path.resolveSibling(normalizeFileName(path.getFileName().toString()))));
+            renames.entrySet().removeIf(rename -> rename.getKey().equals(rename.getValue()));
 
             ensureNoCollisions(contents, renames);
 
             for (Map.Entry<Path, Path> rename : renames.entrySet()) {
-                if (!rename.getKey().equals(rename.getValue())) {
-                    Files.move(rename.getKey(), rename.getValue());
-                    if (verbose) {
-                        System.out.println(rename.getKey().getFileName() + " -> " + rename.getValue().getFileName());
-                    }
+                Files.move(rename.getKey(), rename.getValue());
+                if (verbose) {
+                    System.out.println(rename.getKey().getFileName() + " -> " + rename.getValue().getFileName());
                 }
             }
         } catch (IOException e) {
